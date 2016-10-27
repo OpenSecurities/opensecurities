@@ -1,8 +1,5 @@
-import falcon
+from flask import Flask
 
-from opensecurities.endpoints.status import Status
+app = Flask(__name__)
 
-api = falcon.API()
-
-# Status
-api.add_route(Status.path, Status())
+from opensecurities.endpoints import status

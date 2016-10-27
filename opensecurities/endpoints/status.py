@@ -1,11 +1,13 @@
-import falcon
+import json
 
-from opensecurities.endpoints import BaseEndPoint
+from opensecurities import app
+from opensecurities.endpoints import render
+from opensecurities.version import __version__ as VERSION
 
-class Status(BaseEndPoint):
+@app.route('/status')
+def index():
+    data = {
+        'version' : VERSION
+    }
 
-    path = '/status'
-
-    def on_get(self, req, resp):
-
-        resp.body = 'Everything is working'
+    return render(data)

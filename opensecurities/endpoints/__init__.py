@@ -1,3 +1,5 @@
 
-class BaseEndPoint(object):
-    pass
+import json
+
+def render(data):
+    return json.dumps(data)

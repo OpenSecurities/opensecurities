@@ -1,16 +1,16 @@
-import falcon
-from falcon.testing import TestCase
 
-from opensecurities.endpoints import status
-from opensecurities import api
+import json
+import unittest
 
-class TestStatusEndpoint(TestCase):
+from opensecurities import app
+from opensecurities.version import __version__ as VERSION
+
+class TestStatusEndpoint(unittest.TestCase):
     
     def setUp(self):
-        self.api = api
+        self.app = app.test_client()
 
     def test_response(self):
 
-        result = self.simulate_get('/status')
-        self.assertEqual(result.status_code, 200)
-        self.assertEqual(result.text, 'Everything is working')
+        result = json.loads(self.app.get('/status').data.decode('utf-8'))
+        self.assertEqual(VERSION, result['version'])
