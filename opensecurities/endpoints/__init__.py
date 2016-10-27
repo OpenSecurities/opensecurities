@@ -1,0 +1,3 @@
+
+class BaseEndPoint(object):
+    pass
