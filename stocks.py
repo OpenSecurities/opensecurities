@@ -14,13 +14,15 @@ import pprint
 
 HELP_STRINGS = {
     'argument_symbol' : 'Only fetch results for provided stock symbol',
-    'argument_list' : 'Fetch a list of publicly traded stock symbols.'
+    'argument_list' : 'Fetch a list of publicly traded stock symbols.',
+    'argument_collapse' : 'Collapse the returned info into a single level.'
 }
 
-def process_rss(string, child):
+def process_rss(string, child, symbol):
     "Process RSS passed as a string"
 
     stock = {
+        'symbol' : None,
         'name' : None,
         'cik' : None,
         'address' : {
@@ -34,6 +36,7 @@ def process_rss(string, child):
     }
 
     info = feedparser.parse(string)['feed']
+    stock['symbol'] = symbol
     stock['cik'] = info['cik']
     stock['name'] = info['conformed-name']
     stock['phone'] = info['phone']
@@ -68,6 +71,20 @@ def symbol_list():
 
     return companies
 
+def format_collapse(data):
+    "Formats the data onto a single level. Handy for use with *nix pipes"
+
+    new_data = {}
+    new_data['cik'] = data['cik']
+    new_data['name'] = data['name']
+    new_data['street1'] = data['address']['street1']
+    new_data['street2'] = data['address']['street2']
+    new_data['city'] = data['address']['city']
+    new_data['state'] = data['address']['state']
+    new_data['zip'] = data['address']['zip']
+
+    return new_data
+
 def symbol_search(symbol):
     "Search for company data via stock symbol"
     url = 'https://www.sec.gov/cgi-bin/browse-edgar?'\
@@ -75,7 +92,7 @@ def symbol_search(symbol):
             + '&type=&dateb=&owner=exclude&start=0&count=40&output=atom'
 
     req = urllib.request.urlopen(url)
-    return process_rss(req.read().decode('utf-8'), 'company-info')
+    return process_rss(req.read().decode('utf-8'), 'company-info', symbol)
 
 def run():
     "Main program loop"
@@ -84,10 +101,17 @@ def run():
     parser.add_argument('-l', '--list', \
             help=HELP_STRINGS['argument_list'],action="store_true", \
             default=False)
+    parser.add_argument('-c', '--collapse', \
+            help=HELP_STRINGS['argument_collapse'],action="store_true", \
+            default=False)
     args = parser.parse_args()
 
     if args.symbol:
-        print(json.dumps(symbol_search(args.symbol)))
+        rtn = symbol_search(args.symbol)
+        if args.collapse:
+            print(json.dumps(format_collapse(rtn)))
+        else:
+            print(json.dumps(rtn))
     elif args.list:
         print(json.dumps(symbol_list()))
 
