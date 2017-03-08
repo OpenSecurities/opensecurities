@@ -15,6 +15,7 @@ import pprint
 HELP_STRINGS = {
     'argument_symbol' : 'Only fetch results for provided stock symbol',
     'argument_list' : 'Fetch a list of publicly traded stock symbols.',
+    'argument_post' : 'POST the acquired data to this endpoint.',
     'argument_collapse' : 'Collapse the returned info into a single level.'
 }
 
@@ -76,6 +77,7 @@ def format_collapse(data):
 
     new_data = {}
     new_data['cik'] = data['cik']
+    new_data['symbol'] = data['symbol']
     new_data['name'] = data['name']
     new_data['street1'] = data['address']['street1']
     new_data['street2'] = data['address']['street2']
@@ -94,6 +96,22 @@ def symbol_search(symbol):
     req = urllib.request.urlopen(url)
     return process_rss(req.read().decode('utf-8'), 'company-info', symbol)
 
+def post_results(endpoint, results):
+    "HTTP POSTs the results of the script run to the provided endpoint."
+
+    req = urllib.request.Request(
+            endpoint,
+            data=results.encode('utf8'),
+            headers={'content-type': 'application/json'}
+    )
+
+    try: 
+        response = urllib.request.urlopen(req)
+        return response.info()
+    except Exception as e:
+        print(e)
+        return None
+
 def run():
     "Main program loop"
     parser = argparse.ArgumentParser()
@@ -104,14 +122,26 @@ def run():
     parser.add_argument('-c', '--collapse', \
             help=HELP_STRINGS['argument_collapse'],action="store_true", \
             default=False)
+    parser.add_argument('-p', '--post', help=HELP_STRINGS['argument_post'])
+
     args = parser.parse_args()
 
     if args.symbol:
         rtn = symbol_search(args.symbol)
+        rendered_output = ''
+
         if args.collapse:
-            print(json.dumps(format_collapse(rtn)))
+            rendered_output = json.dumps(format_collapse(rtn))
         else:
-            print(json.dumps(rtn))
+            rendered_output = json.dumps(rtn)
+
+        if args.post:
+            send = post_results(args.post, rendered_output)
+            if send != None:
+                print(send)
+        else:
+            print(rendered_output)
+
     elif args.list:
         print(json.dumps(symbol_list()))
 
