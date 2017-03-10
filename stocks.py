@@ -10,8 +10,6 @@ import urllib.request
 # 3rd party
 import feedparser
 
-import pprint
-
 HELP_STRINGS = {
     'argument_symbol' : 'Only fetch results for provided stock symbol',
     'argument_list' : 'Fetch a list of publicly traded stock symbols.',

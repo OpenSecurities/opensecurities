@@ -1,0 +1,134 @@
+#!/usr/bin/env python
+
+import argparse
+import configparser
+from datetime import datetime
+import json
+from os import path
+import urllib.request
+
+HELP_STRINGS = {
+    'symbol' : 'Only fetch results for provided stock symbol',
+    'historic' : 'Fetch all the historic prices',
+    'post' : 'POST the acquired data to this endpoint.',
+    'today' : "Return only todays prices."
+}
+
+QUANDL_KEY = ''
+
+def load_config():
+    "Loads a config from the home directory"
+    home = path.expanduser('~')
+    config_path = path.join(home, '.opensecurities')
+    config = configparser.ConfigParser()
+    config.readfp(open(config_path))
+
+    global QUANDL_KEY
+
+    QUANDL_KEY = config.get('quandl', 'api_key')
+
+def transform(price):
+    "Transform from the Quandl format to the OS format."
+    n = {
+        'symbol' : price[0],
+        'date' : price[1],
+        'open' : price[2],
+        'high' : price[3],
+        'low' : price[4],
+        'close' : price[5],
+        'volume' : int(price[6]),
+        'ex_dividend' : price[7],
+        'split_ratio' : price[8],
+        'adj_open' : price[9],
+        'adj_high' : price[10],
+        'adj_low' : price[11],
+        'adj_close' : price[12],
+        'adj_volume' : int(price[13])
+    }
+
+    return n
+
+def get_historic(symbol):
+    "Download the historic prices for the provided stock."
+    url = 'https://www.quandl.com/api/v3/datatables/WIKI/PRICES.json?'
+    url = '%sticker=%s' % (url, symbol)
+    url = '%s&api_key=%s' % (url, QUANDL_KEY)
+
+    req = urllib.request.urlopen(url)
+    resp = json.loads(req.read().decode('utf-8'))
+
+    prices = []
+
+    for price in resp['datatable']['data']:
+        prices.append(transform(price))
+
+    return prices
+
+def get_today(symbol):
+    "Download the most recently available EOD prices."
+
+    datestamp = datetime.now().strftime('%Y-%m-%d')
+    url = 'https://www.quandl.com/api/v3/datatables/WIKI/PRICES.json?'
+    url = '%sticker=%s' % (url, symbol)
+    url = '%s&date=%s' % (url, datestamp)
+    url = '%s&api_key=%s' % (url, QUANDL_KEY)
+
+    req = urllib.request.urlopen(url)
+    resp = json.loads(req.read().decode('utf-8'))
+
+    if len(resp['datatable']['data']) == 0:
+        print('No results available')
+
+        return None
+
+    return transform(resp['datatable']['data'][0])
+
+def post_results(endpoint, results):
+    "HTTP POSTs the results of the script run to the provided endpoint."
+
+    req = urllib.request.Request(
+            endpoint,
+            data=results.encode('utf8'),
+            headers={'content-type': 'application/json'}
+    )
+
+    try: 
+        response = urllib.request.urlopen(req)
+        return response.info()
+    except Exception as e:
+        print(e)
+        print(e.read().decode('utf-8'))
+        return None
+
+def run():
+    "Main program loop"
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-s', '--symbol', help=HELP_STRINGS['symbol'])
+    parser.add_argument('-i', '--historic', help=HELP_STRINGS['historic'], \
+            action="store_true", default=False)
+    parser.add_argument('-t', '--today', help=HELP_STRINGS['today'], \
+            action="store_true", default=True)
+    parser.add_argument('-p', '--post', help=HELP_STRINGS['post'])
+
+    args = parser.parse_args()
+    result = None
+
+    load_config()
+
+    if args.symbol:
+        if args.historic:
+            result = get_historic(args.symbol)
+        elif args.today:
+            result = get_today(args.symbol)
+
+    if result != None:
+
+        if args.post:
+            send = post_results(args.post, json.dumps(result))
+            if send != None:
+                print(send)
+        else:
+            print(json.dumps(result))
+
+if __name__ == '__main__':
+    run()
