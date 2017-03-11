@@ -4,8 +4,11 @@ import argparse
 import configparser
 from datetime import datetime
 import json
-from os import path
+from os import path, listdir, rename
+import re
+import tempfile
 import urllib.request
+import zipfile
 
 HELP_STRINGS = {
     'symbol' : 'Only fetch results for provided stock symbol',
@@ -52,15 +55,72 @@ def get_historic(symbol):
     "Download the historic prices for the provided stock."
     url = 'https://www.quandl.com/api/v3/datatables/WIKI/PRICES.json?'
     url = '%sticker=%s' % (url, symbol)
+    url = '%s&qopts.export=true' % url
     url = '%s&api_key=%s' % (url, QUANDL_KEY)
+
+    prices = []
 
     req = urllib.request.urlopen(url)
     resp = json.loads(req.read().decode('utf-8'))
 
-    prices = []
+    download_link = resp['datatable_bulk_download']['file']['link']
 
-    for price in resp['datatable']['data']:
-        prices.append(transform(price))
+    # Download the zip and extract the CSV
+    with tempfile.TemporaryDirectory() as work_dir:
+        req = urllib.request.urlopen(download_link)
+
+        with open(path.join(work_dir, 'prices.zip'), 'wb') as z_file:
+            z_file.write(req.read())
+
+        with zipfile.ZipFile(path.join(work_dir, 'prices.zip')) as zip:
+            for file in zip.namelist():
+                if re.search('\.csv$', file):
+                    zip.extract(file, work_dir)
+                    rename(
+                        path.join(work_dir, file),
+                        path.join(work_dir, 'prices.csv')
+                    )
+
+        if 'prices.csv' not in listdir(work_dir):
+            return None
+
+        columns = []
+
+        for i, line in enumerate(open(path.join(work_dir, 'prices.csv'))):
+            line = line.replace('\n', '')
+
+            if i == 0:
+                for col in line.split(','):
+                    if col == "ticker":
+                        col = 'symbol'
+                    elif col == 'ex-dividend':
+                        col = 'ex_dividend'
+
+                    columns.append(col)
+            else:
+                if not columns:
+                    print('Error reading header')
+                    return None
+                
+                obj = {}
+                for y, col in enumerate(line.split(',')):
+                    col_name = columns[y]
+                    
+                    try:
+                        col = float(col)
+                    except Exception:
+                        pass
+                    
+                    try:
+                        col = int(col)
+                    except Exception:
+                        pass
+
+                    obj.update({
+                        columns[y] : col
+                    })
+
+                prices.append(obj)
 
     return prices
 
