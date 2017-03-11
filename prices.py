@@ -105,16 +105,16 @@ def get_historic(symbol):
                 obj = {}
                 for y, col in enumerate(line.split(',')):
                     col_name = columns[y]
-                    
-                    try:
-                        col = float(col)
-                    except Exception:
-                        pass
-                    
-                    try:
-                        col = int(col)
-                    except Exception:
-                        pass
+
+                    # Convert the volume fields
+                    if re.search('volume', col_name):
+                        col = int(float(col))
+                    else:
+                        # Try to convert string to float if possible
+                        try:
+                            col = float(col)
+                        except ValueError:
+                            pass
 
                     obj.update({
                         columns[y] : col
