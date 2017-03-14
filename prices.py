@@ -81,16 +81,17 @@ def get_historic(symbol):
                         path.join(work_dir, 'prices.csv')
                     )
 
+
         if 'prices.csv' not in listdir(work_dir):
             return None
 
         columns = []
 
         for i, line in enumerate(open(path.join(work_dir, 'prices.csv'))):
-            line = line.replace('\n', '')
 
             if i == 0:
                 for col in line.split(','):
+                    col = col.replace('\n', '')
                     if col == "ticker":
                         col = 'symbol'
                     elif col == 'ex-dividend':
@@ -105,6 +106,7 @@ def get_historic(symbol):
                 obj = {}
                 for y, col in enumerate(line.split(',')):
                     col_name = columns[y]
+                    col = col.replace('\n', '')
 
                     # Convert the volume fields
                     if re.search('volume', col_name):
