@@ -14,6 +14,7 @@ HELP_STRINGS = {
     'symbol' : 'Only fetch results for provided stock symbol',
     'historic' : 'Fetch all the historic prices',
     'post' : 'POST the acquired data to this endpoint.',
+    'from' : 'Retrive prices starting with, but not including, the provided date.',
     'today' : "Return only todays prices."
 }
 
@@ -145,6 +146,34 @@ def get_today(symbol):
 
     return transform(resp['datatable']['data'][0])
 
+def get_from_date(symbol, from_date):
+    "Download all price data starting with, but not including, the from_date"
+
+    datestamp = datetime.now().strftime('%Y-%m-%d')
+    url = 'https://www.quandl.com/api/v3/datatables/WIKI/PRICES.json?'
+    url = '%sticker=%s' % (url, symbol)
+    url = '%s&date.gt=%s' % (url, from_date)
+    url = '%s&api_key=%s' % (url, QUANDL_KEY)
+
+    req = urllib.request.urlopen(url)
+    resp = json.loads(req.read().decode('utf-8'))
+
+    results = resp['datatable']['data']
+
+    if len(results) == 0:
+        print('No results available')
+
+        return None
+    elif len(results) == 1:
+        # Single result
+        return transform(results[0])
+    else:
+        prices = []
+        for r in results:
+            prices.append(transform(r))
+
+        return prices
+
 def post_results(endpoint, results):
     "HTTP POSTs the results of the script run to the provided endpoint."
 
@@ -171,6 +200,7 @@ def run():
     parser.add_argument('-t', '--today', help=HELP_STRINGS['today'], \
             action="store_true", default=True)
     parser.add_argument('-p', '--post', help=HELP_STRINGS['post'])
+    parser.add_argument('-f', '--from-date', help=HELP_STRINGS['from'])
 
     args = parser.parse_args()
     result = None
@@ -180,6 +210,8 @@ def run():
     if args.symbol:
         if args.historic:
             result = get_historic(args.symbol)
+        elif args.from_date:
+            result = get_from_date(args.symbol, args.from_date)
         elif args.today:
             result = get_today(args.symbol)
 
