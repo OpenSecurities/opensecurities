@@ -4,7 +4,7 @@ CREATE TABLE stocks (
     cik         integer NOT NULL,
     city        varchar(75),
     state       char(2),
-    zip         char(5),
+    zip         char(11),
     street1     varchar(255),
     street2     varchar(255)
 );
