@@ -11,7 +11,7 @@ import urllib.request
 import zipfile
 
 HELP_STRINGS = {
-    'symbol' : 'Only fetch results for provided stock symbol',
+    'symbol' : 'Only fetch results for provided stock symbols. Comma separated.',
     'historic' : 'Fetch all the historic prices',
     'post' : 'POST the acquired data to this endpoint.',
     'from' : 'Retrive prices starting with, but not including, the provided date.',
@@ -52,12 +52,14 @@ def transform(price):
 
     return n
 
-def get_historic(symbol):
+def get_historic(symbols):
     "Download the historic prices for the provided stock."
     url = 'https://www.quandl.com/api/v3/datatables/WIKI/PRICES.json?'
-    url = '%sticker=%s' % (url, symbol)
+    url = '%sticker=%s' % (url, ','.join(symbols))
     url = '%s&qopts.export=true' % url
     url = '%s&api_key=%s' % (url, QUANDL_KEY)
+
+    print(url)
 
     prices = []
 
@@ -127,14 +129,16 @@ def get_historic(symbol):
 
     return prices
 
-def get_today(symbol):
+def get_today(symbols):
     "Download the most recently available EOD prices."
 
     datestamp = datetime.now().strftime('%Y-%m-%d')
     url = 'https://www.quandl.com/api/v3/datatables/WIKI/PRICES.json?'
-    url = '%sticker=%s' % (url, symbol)
+    url = '%sticker=%s' % (url, ','.join(symbols))
     url = '%s&date=%s' % (url, datestamp)
     url = '%s&api_key=%s' % (url, QUANDL_KEY)
+
+    print(url)
 
     req = urllib.request.urlopen(url)
     resp = json.loads(req.read().decode('utf-8'))
@@ -146,12 +150,12 @@ def get_today(symbol):
 
     return transform(resp['datatable']['data'][0])
 
-def get_from_date(symbol, from_date):
+def get_from_date(symbols, from_date):
     "Download all price data starting with, but not including, the from_date"
 
     datestamp = datetime.now().strftime('%Y-%m-%d')
     url = 'https://www.quandl.com/api/v3/datatables/WIKI/PRICES.json?'
-    url = '%sticker=%s' % (url, symbol)
+    url = '%sticker=%s' % (url, ','.join(symbols))
     url = '%s&date.gt=%s' % (url, from_date)
     url = '%s&api_key=%s' % (url, QUANDL_KEY)
 
@@ -208,12 +212,13 @@ def run():
     load_config()
 
     if args.symbol:
+        symbols = args.symbol.replace(' ', '').split(',')
         if args.historic:
-            result = get_historic(args.symbol)
+            result = get_historic(symbols)
         elif args.from_date:
-            result = get_from_date(args.symbol, args.from_date)
+            result = get_from_date(symbols, args.from_date)
         elif args.today:
-            result = get_today(args.symbol)
+            result = get_today(symbols)
 
     if result != None:
 
